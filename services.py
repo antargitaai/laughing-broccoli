@@ -1,9 +1,9 @@
-import asyncio
-import time
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from config import OPENAI_API_KEY, EMBEDDING_MODEL, MODEL_NAME
+import os
 import uuid
-from db import get_db, COLLECTION_NAME
+import time
+import asyncio
+from db import get_db
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 llm = None
 
@@ -11,11 +11,11 @@ def init_llm():
     global llm
 
     llm = ChatOpenAI(
-        api_key=OPENAI_API_KEY,
-        model=MODEL_NAME
+        api_key=os.getenv("OPENAI_API_KEY"),
+        model=os.getenv("MODEL_NAME")
     )
 
-embedding_model = OpenAIEmbeddings( api_key=OPENAI_API_KEY, model=EMBEDDING_MODEL )
+embedding_model = OpenAIEmbeddings( api_key=os.getenv("OPENAI_API_KEY"), model=os.getenv("EMBEDDING_MODEL") )
 
 async def process_entry(entry):
 
@@ -66,7 +66,7 @@ def store_entry(entry, summary, signals, embedding):
     point_id = f"{entry.user_id}_{entry.entry_id}"  # ✅ deterministic ID
 
     client.upsert(
-        collection_name=COLLECTION_NAME,
+        collection_name=os.getenv("COLLECTION_NAME"),
         points=[
             {
                 "id": point_id,
