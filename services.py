@@ -95,25 +95,24 @@ def get_entries_by_date(user_id: str, date: str):
                 models.FieldCondition(
                     key="user_id",
                     match=models.MatchValue(value=user_id),
-                ),
-                models.FieldCondition(
-                    key="date_time",
-                    match=models.MatchText(value=date),  # ✅ FIXED
-                ),
+                )
             ]
         ),
-        limit=50,
+        limit=100,
         with_payload=True,
         with_vectors=False,
     )
 
     points = results[0]
 
-    entries = [
-        p.payload.get("text", "")
-        for p in points
-        if p.payload and p.payload.get("text")
-    ]
+    entries = []
+
+    for p in points:
+        payload = p.payload or {}
+
+        dt = payload.get("date_time", "")
+        if dt.startswith(date):  # ✅ filter here
+            entries.append(payload.get("text", ""))
 
     return entries
 
