@@ -64,7 +64,3 @@ def get_db():
     if client is None:
         init_db()
     return client
-
-
-def get_db():
-    return client
