@@ -4,6 +4,8 @@ import time
 import asyncio
 from db import get_db
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from qdrant_client import models
+import os
 
 llm = None
 
@@ -82,3 +84,74 @@ def store_entry(entry, summary, signals, embedding):
             }
         ]
     )
+
+def get_entries_by_date(user_id: str, date: str):
+    client = get_db()
+
+    results = client.scroll(
+        collection_name=os.getenv("COLLECTION_NAME"),
+        scroll_filter=models.Filter(
+            must=[
+                models.FieldCondition(
+                    key="user_id",
+                    match=models.MatchValue(value=user_id),
+                ),
+                models.FieldCondition(
+                    key="date_time",
+                    range=models.Range(
+                        gte=f"{date}T00:00:00",
+                        lte=f"{date}T23:59:59",
+                    ),
+                ),
+            ]
+        ),
+        limit=50,
+        with_payload=True,
+        with_vectors=False,
+    )
+
+    points = results[0]
+
+    entries = [
+        p.payload.get("text", "")
+        for p in points
+        if p.payload and p.payload.get("text")
+    ]
+
+    return entries
+
+async def summarize_day(entries: list[str]):
+
+    if not entries:
+        return "No entries found for this day."
+
+    combined_text = "\n\n".join(entries)
+
+    prompt = f"""
+You are a thoughtful journaling assistant.
+
+Based on the user's journal entries for the day:
+
+1. Summarize how their day went emotionally and behaviorally
+2. Highlight any stress, exam pressure, or concerns (if present)
+3. Ask 1–2 gentle reflective questions if needed
+4. End with a short motivational / supportive message
+
+Keep it:
+- Warm
+- Personal
+- Not robotic
+
+Pay special attention to:
+- stress
+- burnout
+- exams
+- self-doubt
+
+Journal Entries:
+{combined_text}
+"""
+
+    response = await asyncio.to_thread(llm.invoke, prompt)
+
+    return response.content.strip()
