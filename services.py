@@ -98,10 +98,7 @@ def get_entries_by_date(user_id: str, date: str):
                 ),
                 models.FieldCondition(
                     key="date_time",
-                    range=models.Range(
-                        gte=f"{date}T00:00:00",
-                        lte=f"{date}T23:59:59",
-                    ),
+                    match=models.MatchText(value=date),  # ✅ FIXED
                 ),
             ]
         ),
