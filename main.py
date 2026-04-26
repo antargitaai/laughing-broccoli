@@ -4,7 +4,7 @@ from fastapi import FastAPI, UploadFile, File
 
 from db import init_db
 from models import JournalEntry
-from services import init_llm, process_entry, store_entry
+from services import init_llm, process_entry, store_entry, summarize_day, get_entries_by_date
 
 
 @asynccontextmanager
@@ -80,3 +80,26 @@ async def upload_json(file: UploadFile = File(...)):
         })
 
     return {"processed": results}
+
+from fastapi import Query
+
+
+@app.get("/daily-summary")
+async def daily_summary(
+    user_id: str = Query(...),
+    date: str = Query(...),  # format: YYYY-MM-DD
+):
+    try:
+        entries = get_entries_by_date(user_id, date)
+
+        summary = await summarize_day(entries)
+
+        return {
+            "user_id": user_id,
+            "date": date,
+            "entries_count": len(entries),
+            "summary": summary
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
