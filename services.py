@@ -62,18 +62,20 @@ async def process_entry(entry):
     )
 
 def store_entry(entry, summary, signals, embedding):
-
     client = get_db()
 
-    point_id = f"{entry.user_id}_{entry.entry_id}"  # ✅ deterministic ID
+    point_id = str(uuid.uuid5(
+        uuid.NAMESPACE_DNS,
+        f"{entry.user_id}_{entry.entry_id}"
+    ))
 
     client.upsert(
         collection_name=os.getenv("COLLECTION_NAME"),
         points=[
-            {
-                "id": point_id,
-                "vector": embedding,
-                "payload": {
+            models.PointStruct(
+                id=point_id,
+                vector=embedding,
+                payload={
                     "user_id": entry.user_id,
                     "entry_id": entry.entry_id,
                     "date_time": entry.date_time.isoformat(),
@@ -81,7 +83,7 @@ def store_entry(entry, summary, signals, embedding):
                     "signals": signals,
                     "text": entry.content
                 }
-            }
+            )
         ]
     )
 
