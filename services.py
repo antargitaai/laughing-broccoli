@@ -120,9 +120,6 @@ def get_entries_by_date(user_id: str, date: str):
 
 async def summarize_day(entries: list[str]):
 
-    if not entries:
-        return "No entries found for this day."
-
     combined_text = "\n\n".join(entries)
 
     prompt = f"""
