@@ -64,3 +64,52 @@ def get_db():
     if client is None:
         init_db()
     return client
+
+from qdrant_client.models import Filter, FieldCondition, MatchValue
+import os
+
+COLLECTION_NAME = os.getenv("COLLECTION_NAME")
+
+
+def fetch_journals(user_id, entry_id=None, datetime=None):
+
+    client = get_db()
+
+    conditions = [
+        FieldCondition(
+            key="user_id",
+            match=MatchValue(value=user_id)
+        )
+    ]
+
+    # optional filters
+    if entry_id:
+        conditions.append(
+            FieldCondition(
+                key="entry_id",
+                match=MatchValue(value=entry_id)
+            )
+        )
+
+    if datetime:
+        conditions.append(
+            FieldCondition(
+                key="datetime",
+                match=MatchValue(value=datetime)
+            )
+        )
+
+    points, _ = client.scroll(
+        collection_name=COLLECTION_NAME,
+        scroll_filter=Filter(
+            must=conditions
+        ),
+        limit=100
+    )
+
+    journals = []
+
+    for point in points:
+        journals.append(point.payload)
+
+    return journals
