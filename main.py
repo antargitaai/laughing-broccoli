@@ -103,3 +103,26 @@ async def daily_summary(
 
     except Exception as e:
         return {"error": str(e)}
+
+@app.get("/journals")
+async def fetch_journals_endpoint(
+    user_id: str = Query(...),
+    entry_id: Optional[str] = Query(None),
+    datetime: Optional[str] = Query(None),
+):
+    try:
+
+        journals = fetch_journals(
+            user_id=user_id,
+            entry_id=entry_id,
+            datetime=datetime
+        )
+
+        return {
+            "user_id": user_id,
+            "count": len(journals),
+            "journals": journals
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
