@@ -1,8 +1,9 @@
 import json
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Query
+from typing import Optional
 
-from db import init_db
+from db import init_db, fetch_journals
 from models import JournalEntry
 from services import init_llm, process_entry, store_entry, summarize_day, get_entries_by_date
 
@@ -105,7 +106,7 @@ async def daily_summary(
         return {"error": str(e)}
 
 @app.get("/journals")
-async def fetch_journals_endpoint(
+async def get_journals(
     user_id: str = Query(...),
     entry_id: Optional[str] = Query(None),
     datetime: Optional[str] = Query(None),
