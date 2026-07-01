@@ -7,7 +7,6 @@ from db import init_db, fetch_journals
 from models import JournalEntry
 from services import init_llm, process_entry, store_entry, summarize_day, get_entries_by_date
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_llm()
@@ -31,9 +30,9 @@ def home():
 @app.post("/ingest")
 async def ingest(entry: JournalEntry):
 
-    summary, signals, embedding = await process_entry(entry)
+    summary, signals, dense, sparse = await process_entry(entry)
 
-    store_entry(entry, summary, signals, embedding)  # ✅ fixed
+    store_entry(entry, summary, signals, dense, sparse)  # ✅ fixed
 
     return {
         "message": "Entry processed",

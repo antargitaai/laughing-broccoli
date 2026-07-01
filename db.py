@@ -1,11 +1,13 @@
 import os
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
-client = None
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PayloadSchemaType
 import os
+
+from dotenv import load_dotenv
+load_dotenv()
 
 client = None
 
@@ -18,7 +20,7 @@ def init_db():
     )
 
     COLLECTION_NAME = os.getenv("COLLECTION_NAME")
-    EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+    EMBEDDING_MODEL = os.getenv("DENSE_EMBEDDING_MODEL")
 
     # ✅ Auto-detect vector size
     if EMBEDDING_MODEL == "text-embedding-3-large":
@@ -113,3 +115,8 @@ def fetch_journals(user_id, entry_id=None, datetime=None):
         journals.append(point.payload)
 
     return journals
+
+client = QdrantClient(
+            url=os.getenv("QDRANT_URL"),
+        api_key=os.getenv("QDRANT_API_KEY")
+)

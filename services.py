@@ -6,6 +6,10 @@ from db import get_db
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from qdrant_client import models
 import os
+from fastembed import SparseTextEmbedding
+
+from dotenv import load_dotenv
+load_dotenv()
 
 llm = None
 
@@ -17,27 +21,41 @@ def init_llm():
         model=os.getenv("MODEL_NAME")
     )
 
-embedding_model = OpenAIEmbeddings( api_key=os.getenv("OPENAI_API_KEY"), model=os.getenv("EMBEDDING_MODEL") )
+sparse_model = SparseTextEmbedding(model_name=os.getenv("SPARSE_EMBEDDING_MODEL"))
+dense_embedding_model = OpenAIEmbeddings( api_key=os.getenv("OPENAI_API_KEY"), model=os.getenv("DENSE_EMBEDDING_MODEL") )
 
 async def process_entry(entry):
 
     text = entry.content
 
     summary_prompt = f"""
-    Summarize this journal entry in 2 concise lines.
-    Focus ONLY on:
-    - emotional state
-    - key internal conflict
+You are an information extraction system.
 
-    Avoid storytelling. Be precise.
+Your task is to produce a factual summary of the journal entry.
+
+Rules:
+- Extract only information explicitly stated in the text.
+- Do not infer emotions, intentions, motivations, personality traits, relationships, or mental state unless they are directly expressed.
+- If evidence is insufficient, state that no clear emotional information is present.
+- Preserve uncertainty. Never fill gaps with assumptions.
+- Keep the summary under 25 words.
+- Write in neutral, objective language suitable for semantic search.
 
     Entry:
     {text}
     """
 
     signal_prompt = f"""
-    Extract key emotional and behavioral signals (max 5).
+You are an information extraction system.
 
+Extract only observable emotional or behavioral signals that are explicitly supported by the text.
+
+Rules:
+- Do not infer hidden feelings or motivations.
+- Do not perform psychological analysis.
+- Do not exaggerate ordinary conversation.
+- If no meaningful signals are present, return an empty list.
+- Each signal should be 2-6 words.
     Entry:
     {text}
     """
@@ -51,17 +69,20 @@ async def process_entry(entry):
     signals_text = signals.content.strip()
 
     # ✅ Embed summary instead of full text
-    embedding = await asyncio.to_thread(
-        embedding_model.embed_query, summary_text
+    dense = await asyncio.to_thread(
+        dense_embedding_model.embed_query, 
+        summary_text,
     )
+    sparse = next(sparse_model.embed([summary_text]))
 
     return (
         summary_text,
         signals_text,
-        embedding
+        dense,
+        sparse,
     )
 
-def store_entry(entry, summary, signals, embedding):
+def store_entry(entry, summary, signals, dense, sparse):
     client = get_db()
 
     point_id = str(uuid.uuid5(
@@ -74,7 +95,13 @@ def store_entry(entry, summary, signals, embedding):
         points=[
             models.PointStruct(
                 id=point_id,
-                vector=embedding,
+                vector={
+                    "antargita-dense-vectors": dense,
+                    "antargita-sparse-vectors": models.SparseVector(
+                        indices=sparse.indices.tolist(),
+                        values=sparse.values.tolist(),
+                    ),
+                },
                 payload={
                     "user_id": entry.user_id,
                     "entry_id": entry.entry_id,
